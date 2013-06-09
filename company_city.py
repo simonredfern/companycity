@@ -1,7 +1,7 @@
 from bs4 import BeautifulSoup
 import urllib2
-
 import re
+
 
 def found_zip(text):
 # 51149
@@ -15,6 +15,30 @@ def found_zip(text):
         return False
 
 
+def build_searchurl(company):
+    searchurl = "http://www.bing.com/search?q="
+    comp = comp.split(' ')
+    for word in comp:
+        searchurl = searchurl + '+' + word
+    searchurl = searchurl + '+' + 'impressum'
+    return searchurl
+
+
+def get_link_set(company):
+    searchurl = build_searchurl(company)
+    link_set = []
+    page = urllib2.urlopen(searchurl)
+    soup = BeautifulSoup(page.read())
+    results = soup.find(id="results")
+    for result in results.find_all("h3"):
+        for link in result.find_all("a"):
+            link_set.append(link.get('href'))
+    return link_set
+
+
+companies = ['Wooga GmbH', 'Host Europe GmbH', 'Music Pictures Ltd']
+for comp in companies:
+    link_set = get_link_set(comp)
 
 # go to google searching for company_name + "impressum"
 
@@ -33,16 +57,13 @@ url = "http://www.tesobe.com/en/contact-imprint/"
 #url = "https://www.cloudcontrol.com/imprint"
 
 
-
-page=urllib2.urlopen(url)
+page = urllib2.urlopen(url)
 soup = BeautifulSoup(page.read())
 # print '====================================>'
 # print soup.prettify()
 # print '<===================================='
 
 #print(soup.get_text())
-
-
 
 
 print 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
@@ -60,6 +81,7 @@ else:
 
 
 text = soup.get_text(' , ').lower()
+
 
 
 
@@ -94,7 +116,6 @@ if company_start < 0:
 line_break_after_zip = text.find('\n', zip_end)
 
 germany_after_zip = text.find('germany', zip_end)
-
 
 
 if germany_after_zip > -1 and germany_after_zip < line_break_after_zip:
