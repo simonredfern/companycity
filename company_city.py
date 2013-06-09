@@ -1,6 +1,14 @@
 from bs4 import BeautifulSoup
 import urllib2
 import re
+import json
+
+api_url = "https://demo.openbankproject.com/obp/v1.1/banks/postbank/accounts/tesobe/public/transactions"
+
+
+def get_company_names(api_url):
+    page = urllib2.urlopen(api_url)
+    json_contents = response.read()
 
 
 def found_zip(text):
