@@ -25,7 +25,7 @@ def found_zip(text):
 
 def build_searchurl(company):
     searchurl = "http://www.bing.com/search?q="
-    comp = comp.split(' ')
+    comp = company.split(' ')
     for word in comp:
         searchurl = searchurl + '+' + word
     searchurl = searchurl + '+' + 'impressum'
@@ -87,14 +87,11 @@ else:
 #         r.string = ' '
 
 
-text = soup.get_text().lower()
 
-contents = "--- ".join(str(item) for item in soup.contents)
+text = soup.get_text(' , ').lower()
 
-print contents
 
-# import nltk
-# clean_text = nltk.clean_html(soup)
+
 
 
 #print "===================================="
