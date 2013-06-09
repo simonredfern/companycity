@@ -3,6 +3,9 @@ import urllib2
 import re
 import json
 
+#import html5lib Might want to use this instead of the default python parser.
+
+
 
 api_url = "https://demo.openbankproject.com/obp/v1.1/banks/postbank/accounts/tesobe/public/transactions"
 
@@ -97,7 +100,7 @@ for company in companies:
         # url = "http://weihenstephaner.de/fallback/impressum.html"
 
 
-        print 'about to open %s for %s' % (url, company_name)
+        print 'Open %s for %s' % (url, company_name)
 
 
         try:
@@ -105,6 +108,9 @@ for company in companies:
         except urllib2.URLError:
             print 'Trouble opening web page'
             continue
+
+
+        #document = html5lib.parse(page.read)
 
         try:
             soup = BeautifulSoup(page.read())
@@ -164,13 +170,20 @@ for company in companies:
 
             line_break_after_zip = text.find('\n', zip_end)
 
-            germany_after_zip = text.find('germany', zip_end)
+            something_after_zip = text.find('germany', zip_end)
 
-            if germany_after_zip == -1:
-                germany_after_zip = text.find('deutschland', zip_end)
+            if something_after_zip == -1:
+                something_after_zip = text.find('deutschland', zip_end)
 
-            if germany_after_zip > -1 and germany_after_zip < line_break_after_zip:
-                address_end = germany_after_zip
+            if something_after_zip == -1:
+                something_after_zip = text.find('Telefon:', zip_end)
+
+            if something_after_zip == -1:
+                something_after_zip = text.find('telefon:', zip_end)
+
+
+            if something_after_zip > -1 and something_after_zip < line_break_after_zip:
+                address_end = something_after_zip
             else:
                 address_end = line_break_after_zip
 
@@ -186,7 +199,7 @@ for company in companies:
 
             #print 'address chunk for company %s is \n %s' % (company_name, address_chunk)
 
-            if len(address_chunk) < 100:
+            if len(address_chunk) < 200:
                 valid_company_addresses.append(address_chunk)
 
         else:
