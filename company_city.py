@@ -46,11 +46,11 @@ for comp in companies:
 #company_name = "HOST EUROPE GMBH".lower()
 #url="http://www.hosteurope.de/Impressum/"
 
-#company_name = "Wooga gmbh".lower()
-#url = "http://www.wooga.com/legal/contact/"
+company_name = "Wooga gmbh".lower()
+url = "http://www.wooga.com/legal/contact/"
 
-company_name = "Music Pictures Ltd".lower()
-url = "http://www.tesobe.com/en/contact-imprint/"
+#company_name = "Music Pictures Ltd".lower()
+#url = "http://www.tesobe.com/en/contact-imprint/"
 
 
 #company_name = "cloudControl GmbH".lower()
