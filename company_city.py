@@ -15,6 +15,19 @@ def found_zip(text):
         return False
 
 
+companies = ['Wooga GmbH', 'Host Europe GmbH', 'Music Pictures Ltd']
+complist = []
+for comp in companies: 
+    searchurl = "http://www.google.com/#q="
+    comp = comp.split(' ')
+    for word in comp:
+        searchurl = searchurl+'+'+word
+    searchurl = searchurl+'+'+'imprint'
+    page=urllib2.urlopen(searchurl)
+    soup = BeautifulSoup(page.read())
+    resultsblock = soup.find("ol", {"id":"rso"})
+    resultsblock.find("h3",{"class":"r"})
+
 company_name = "HOST EUROPE GMBH".lower()
 
 # go to google searching for company_name + "impressum"
