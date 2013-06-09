@@ -59,14 +59,9 @@ else:
 
 
 
-text = soup.get_text().lower()
+text = soup.get_text(' , ').lower()
 
-contents = "--- ".join(str(item) for item in soup.contents)
 
-print contents
-
-# import nltk
-# clean_text = nltk.clean_html(soup)
 
 
 #print "===================================="
