@@ -10,19 +10,6 @@ def get_company_names(api_url):
     page = urllib2.urlopen(api_url)
     json_contents = response.read()
 
-
-def found_zip(text):
-# 51149
-
-    pos = text.find('51149')
-
-    if pos > -1:
-        print 'pos is %s' % pos
-        return True
-    else:
-        return False
-
-
 def build_searchurl(company):
     searchurl = "http://www.bing.com/search?q="
     comp = company.split(' ')
@@ -54,8 +41,8 @@ for comp in companies:
 #company_name = "HOST EUROPE GMBH".lower()
 #url="http://www.hosteurope.de/Impressum/"
 
-company_name = "Wooga gmbh".lower()
-url = "http://www.wooga.com/legal/contact/"
+#company_name = "Wooga GmbH".lower()
+#url = "http://www.wooga.com/legal/contact/"
 
 #company_name = "Music Pictures Ltd".lower()
 #url = "http://www.tesobe.com/en/contact-imprint/"
@@ -63,6 +50,15 @@ url = "http://www.wooga.com/legal/contact/"
 
 #company_name = "cloudControl GmbH".lower()
 #url = "https://www.cloudcontrol.com/imprint"
+
+company_name = "Txtr".lower()
+url = "http://de.txtr.com/imprint/"
+
+
+
+company_name = "weihenstephan"
+url = "http://weihenstephaner.de/fallback/impressum.html"
+
 
 
 page = urllib2.urlopen(url)
@@ -76,27 +72,13 @@ soup = BeautifulSoup(page.read())
 
 print 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 
-if found_zip(soup.get_text()):
-    print "yes"
-else:
-    print "no"
-
-#
-# for r in soup:
-#     if (r.string is None):
-#         r.string = ' '
-
-
 
 text = soup.get_text(' , ').lower()
 
 
+print "===================================="
 
-
-
-#print "===================================="
-
-#print text
+print text
 
 print "===================================="
 
@@ -110,13 +92,15 @@ print 'zip_start is %s' % zip_start
 # Find the name of the company before this.
 
 # Find the last mention of the company before the zip
-company_start = text.rfind(company_name, 0, zip_start)
+company_start = text.rfind(company_name.strip(), 0, zip_start)
+
+
 
 print '%s company_start is %s' % (company_name, company_start)
 
 
 if company_start < 0:
-    company_start = 0
+     company_start = 0
 
 # how to find end of city?
 
@@ -125,12 +109,15 @@ line_break_after_zip = text.find('\n', zip_end)
 
 germany_after_zip = text.find('germany', zip_end)
 
+if germany_after_zip == -1:
+    germany_after_zip = text.find('deutschland', zip_end)
 
 if germany_after_zip > -1 and germany_after_zip < line_break_after_zip:
     address_end = germany_after_zip
 else:
     address_end = line_break_after_zip
 
+# sanity check
 if address_end - zip_end > 50:
     address_end = zip_end + 50
 
