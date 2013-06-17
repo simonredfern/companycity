@@ -1,5 +1,9 @@
+# Licence AGPL.
+
+
+
 from bs4 import BeautifulSoup
-import urllib2
+import urllib, urllib2
 import re
 import json
 
@@ -9,7 +13,10 @@ import json
 
 api_url = "https://demo.openbankproject.com/obp/v1.1/banks/postbank/accounts/tesobe/public/transactions"
 
+"""
+Get company names out of OBP transaction data
 
+"""
 def get_company_names(api_url):
     company_names = []
     response = urllib2.urlopen(api_url)
@@ -23,7 +30,7 @@ def get_company_names(api_url):
         is_alias = transaction['transaction']['other_account']['holder']['is_alias']
 
         if not is_alias:
-            print 'Not an alias, - Use %s ' % entity
+            print 'Real name: %s ' % entity
 
             entity = entity.strip()
             if len(entity) > 2:
@@ -31,28 +38,30 @@ def get_company_names(api_url):
             else:
                 print 'Too short'
         else:
-            print 'Is an alias, - Skip %s' % entity
+            print 'Alias: %s' % entity
 
     return frozenset(company_names) # Remove duplicates
 
 
 
 
+"""
+Use a search engine to find web pages which might contain the companies corporate address
 
-
-def build_searchurl(company):
-    searchurl = "http://www.bing.com/search?q="
-    comp = company.split(' ')
-    for word in comp:
-        searchurl = searchurl + '+' + word
-    searchurl = searchurl + '+' + 'impressum'
-    return searchurl
-
-
-def get_link_set(company):
-    searchurl = build_searchurl(company)
+"""
+def get_possible_pages(company):
     link_set = []
-    page = urllib2.urlopen(searchurl)
+
+    search_url = u'http://www.bing.com/search?q='
+    search_url = '%s %s impressum' % (search_url, company)
+
+
+    search_url = search_url.replace(' ', '+')
+    search_url = search_url.encode("UTF-8")
+    print 'search_url is %s' % search_url
+
+
+    page = urllib2.urlopen(search_url)
     soup = BeautifulSoup(page.read())
     results = soup.find(id="results")
     for result in results.find_all("h3"):
@@ -61,148 +70,240 @@ def get_link_set(company):
     return link_set[0:1]
 
 
-#companies = ['Wooga GmbH', 'Host Europe GmbH', 'Music Pictures Ltd', 'cloudControl GmbH']
-#companies = ['Host Europe GmbH', 'Music Pictures Ltd', 'cloudControl GmbH']
+def open_and_parse(company_name, url, recursion_level=0, addresses = []):
 
-companies = get_company_names(api_url)
+    company_name = company_name.lower()
 
-
-for company in companies:
-    link_set = get_link_set(company)
-
-    valid_company_addresses = []
+    print 'Hello from open_and_parse. company_name is: %s url is %s recursion_level is %s addresses are %s' % (company_name, url, recursion_level, addresses)
+    #import pdb; pdb.set_trace()
 
 
-    # go to google searching for company_name + "impressum"
+    try:
+        page = urllib2.urlopen(url)
+    except urllib2.URLError:
+        print 'Trouble opening web page'
+
+
+    #document = html5lib.parse(page.read)
+
+    try:
+        soup = BeautifulSoup(page.read())
+    except:
+        print 'Trouble parsing try: lxml or html5lib'
+
+
+
+
+#######
+
+    if recursion_level == 0:
+        print 'Try to find Impressum link and go there..'
+        for link in soup.find_all("a"):
+            #import pdb; pdb.set_trace()
+            if link.contents:
+                #print link.contents
+                if link.contents[0].find('impressum')> 0 or link.contents[0].find('Impressum')> 0:
+                    print 'Found an impressum link. href to follow is %s' % link['href']
+
+                    #import pdb; pdb.set_trace()
+                    if recursion_level < 5:
+                        recursion_level += 1
+
+                        # If the href does not contain the domain, need to add it
+                        next_url = link['href']
+                        if not( next_url.find('http://') == 0 or next_url.find('https://') == 0):
+                            next_url = '%s%s' % (url, next_url)
+
+                        return open_and_parse(company_name, next_url, recursion_level, addresses)
+    else:
+        print 'Recursion level is not 0'
+##########
+
+
+
+
+    # print '====================================>'
+    # print soup.prettify()
+    # print '<===================================='
+
+    #print(soup.get_text())
+
+
+    #print 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+
+    # Get rid script tags
+    [s.extract() for s in soup('script')]
+
+
+    # Remove html tags but don't squash and remove spaces
+    # Only interested in text in the body
+
+    text = soup.body.get_text(' , ').lower()
+
+
+
+
+    #print "===================================="
+
+    #print text
+
+    #print "===================================="
+
+    #print re.search('\d\d\d\d\d ', text).span()
+
+    # Look for 5 digits and a space
+    zip_search_result = re.search('\d\d\d\d\d ', text)
+
+    if zip_search_result:
+        zip_start, zip_end = zip_search_result.span()
+
+        print 'zip_start is %s' % zip_start
+
+        print 'zip text is %s' % text[zip_start:zip_start + 100]
+
+        # Find the name of the company before this.
+
+        # Find the last mention of the company before the zip
+        company_start = text.rfind(company_name.strip(), 0, zip_start)
+        print '%s company_start is %s' % (company_name, company_start)
+
+
+
+
+        if zip_start - company_start > 1000:
+            print 'Warning: grabbed too much text'
+            # Try a shorter company name fragment.
+            shorter_company_name = ''
+            for co in company_name.strip().split(' '):
+                print co
+                shorter_company_name = ('%s %s ' % (shorter_company_name, co)).strip()
+
+                print 'shorter_company_name is %s' % shorter_company_name
+                company_start = text.rfind(shorter_company_name, 0, zip_start)
+
+                if zip_start - company_start < 200:
+                    break
+
+
+                # if len(co) > 4:
+                #     print 'adding %s' % co
+                #     shorter_company_name = ('%s %s ' % (shorter_company_name, co)).strip()
+                #
+                #     print 'shorter_company_name is %s' % shorter_company_name
+                # else:
+                #     print 'ignoring'
+            #company_start = text.rfind(shorter_company_name, 0, zip_start)
+            print 'Now, %s company_start is %s' % (shorter_company_name, company_start)
+
+            company_name = shorter_company_name
+
+        print '%s company_start is %s' % (company_name, company_start)
+
+
+        if company_start < 0:
+            company_start = 0
+
+        # how to find end of city?
+
+
+        line_break_after_zip = text.find('\n', zip_end)
+
+        something_after_zip = text.find('germany', zip_end)
+
+        if something_after_zip == -1:
+            something_after_zip = text.find('deutschland', zip_end)
+
+        if something_after_zip == -1:
+            something_after_zip = text.find('Telefon:', zip_end)
+
+        if something_after_zip == -1:
+            something_after_zip = text.find('telefon:', zip_end)
+
+
+        if something_after_zip > -1 and something_after_zip < line_break_after_zip:
+            address_end = something_after_zip
+        else:
+            address_end = line_break_after_zip
+
+        # sanity check
+        if address_end - zip_end > 50:
+            address_end = zip_end + 50
+
+
+        address_chunk = text[company_start: address_end]
+
+        # hack to split the company name (which we already know) away from the address
+        address_chunk = address_chunk.replace(company_name, company_name + " ")
+
+        #print 'address chunk for company %s is \n %s' % (company_name, address_chunk)
+
+        if len(address_chunk) > 200:
+            print 'Warning: chunk is a bit long'
+
+        addresses.append(address_chunk)
+
+        print 'valid addresses for %s are %s' % (company_name, addresses)
+        return addresses
+
+
+    else:
+        print 'Could not find zip code in page'
+        for link in soup.find_all("a"):
+            #print 'link is %s' % link
+            # if link.title:
+            #     if link.title.find('impressum')> 0 or link.title.find('Impressum')> 0:
+            #         print '**** yeah we found an impressum link!'
+
+            #import pdb; pdb.set_trace()
+            if link.contents:
+                #print link.contents
+                if link.contents[0].find('impressum')> 0 or link.contents[0].find('Impressum')> 0:
+                    print 'Found an impressum link. href to follow is %s' % link['href']
+
+                    #import pdb; pdb.set_trace()
+                    if recursion_level < 5:
+                        recursion_level += 1
+
+                        # If the href does not contain the domain, need to add it
+                        next_url = link['href']
+                        if not( next_url.find('http://') == 0 or next_url.find('https://') == 0):
+                            next_url = '%s%s' % (url, next_url)
+
+                        return open_and_parse(company_name, next_url, recursion_level, addresses)
+                    else:
+                        print 'Too deep'
+                        return addresses
+
+
+
+
+
+
+def find_corporate_address(company):
+    print 'company is: %s' % company
+    urls = get_possible_pages(company)
 
     company_name = company.lower()
 
-    for url in link_set:
-
-        # Find first URL
-        #company_name = "HOST EUROPE GMBH".lower()
-        #url="http://www.hosteurope.de/Impressum/"
-
-        #company_name = "Wooga GmbH".lower()
-        #url = "http://www.wooga.com/legal/contact/"
-
-        #company_name = "Music Pictures Ltd".lower()
-        #url = "http://www.tesobe.com/en/contact-imprint/"
-
-
-        #company_name = "cloudControl GmbH".lower()
-        #url = "https://www.cloudcontrol.com/imprint"
-
-        # company_name = "Txtr".lower()
-        # url = "http://de.txtr.com/imprint/"
-        #
-        # company_name = "weihenstephan"
-        # url = "http://weihenstephaner.de/fallback/impressum.html"
-
-
+    for url in urls:
         print 'Open %s for %s' % (url, company_name)
-
-
-        try:
-            page = urllib2.urlopen(url)
-        except urllib2.URLError:
-            print 'Trouble opening web page'
-            continue
-
-
-        #document = html5lib.parse(page.read)
-
-        try:
-            soup = BeautifulSoup(page.read())
-        except:
-            print 'Trouble parsing try: lxml or html5lib'
-            continue
+        print '*** Answer is: %s' % open_and_parse(company_name, url, 0, [])
 
 
 
-        # print '====================================>'
-        # print soup.prettify()
-        # print '<===================================='
 
-        #print(soup.get_text())
+if __name__=="__main__":
 
-
-        #print 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-
-        # Remove html tags but don't squash and remove spaces
-        text = soup.get_text(' , ').lower()
+    #companies = ['Wooga GmbH', 'Host Europe GmbH', 'Music Pictures Ltd', 'cloudControl GmbH']
+    #companies = ['Host Europe GmbH', 'Music Pictures Ltd', 'cloudControl GmbH']
 
 
-        #print "===================================="
-
-        #print text
-
-        #print "===================================="
-
-        #print re.search('\d\d\d\d\d ', text).span()
-
-        # Look for 5 digits and a space
-
-        zip_search_result = re.search('\d\d\d\d\d ', text)
-
-        if zip_search_result:
+    companies = ['FAIRNOPOLY EG I.GR']
 
 
-            zip_start, zip_end = zip_search_result.span()
-
-            #print 'zip_start is %s' % zip_start
-
-            # Find the name of the company before this.
-
-            # Find the last mention of the company before the zip
-            company_start = text.rfind(company_name.strip(), 0, zip_start)
+    # Get companies mentioned in OBP transactions
+    companies = get_company_names(api_url)
 
 
-
-            #print '%s company_start is %s' % (company_name, company_start)
-
-
-            if company_start < 0:
-                 company_start = 0
-
-            # how to find end of city?
-
-
-            line_break_after_zip = text.find('\n', zip_end)
-
-            something_after_zip = text.find('germany', zip_end)
-
-            if something_after_zip == -1:
-                something_after_zip = text.find('deutschland', zip_end)
-
-            if something_after_zip == -1:
-                something_after_zip = text.find('Telefon:', zip_end)
-
-            if something_after_zip == -1:
-                something_after_zip = text.find('telefon:', zip_end)
-
-
-            if something_after_zip > -1 and something_after_zip < line_break_after_zip:
-                address_end = something_after_zip
-            else:
-                address_end = line_break_after_zip
-
-            # sanity check
-            if address_end - zip_end > 50:
-                address_end = zip_end + 50
-
-
-            address_chunk = text[company_start: address_end]
-
-            # hack to split the company name (which we already know) away from the address
-            address_chunk = address_chunk.replace(company_name, company_name + " ")
-
-            #print 'address chunk for company %s is \n %s' % (company_name, address_chunk)
-
-            if len(address_chunk) < 200:
-                valid_company_addresses.append(address_chunk)
-
-        else:
-            print 'Could not find zip code in page'
-
-    print 'valid addresses for %s are %s' % (company_name, valid_company_addresses)
+    for company in companies:
+        find_corporate_address(company)
