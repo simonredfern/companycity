@@ -5,3 +5,4 @@ html5lib==1.0b1
 nltk==2.0.4
 six==1.3.0
 wsgiref==0.1.2
+elasticsearch>0
